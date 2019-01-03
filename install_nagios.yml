@@ -1,0 +1,55 @@
+---
+- hosts: Myservers
+  remote_user: ansible_user
+  become: yes
+  become_method: sudo
+  tasks:
+  - name: Install nagios
+    yum:
+      name:
+       - gcc
+       - glibc
+       - glibc-common 
+       - gd
+       - gd-devel
+       - make 
+       - net-snmp 
+       - openssl-devel 
+       - xinetd 
+       - unzip
+      state: latest
+  - name: ensure that group 'nagcmd' exist
+    group:
+      name: nagcmd
+      state: present
+  - name: create user nagios
+    user:
+      name: nagios
+      group: nagcmd
+  - name: download nagios Curl 
+    shell: curl -L -O https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.1.1.tar.gz | sudo bash -
+    args:
+     warn: no
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Uncompress nagios Binaires 
+    command: "{{ item }}"
+    with_items:
+      - tar xvf nagios-*.tar.gz
+      - cd nagios-*
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+
+  - name: Compile binaires
+    command: "{{ item }}"
+    with_items:
+      - ./configure --with-command-group=nagcmd
+      - make all
+      - sudo make install
+      - make install-commandmode
+      - make install-init
+      - make install-config
+      - make install-webconf
+      - /usr/bin/make install
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+

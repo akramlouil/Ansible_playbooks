@@ -1,0 +1,22 @@
+---
+- hosts: Myservers
+  remote_user: ansible_user
+  become: yes 
+  become_method: sudo
+  tasks:
+  - name: ensure that apache is at the latest version
+    yum:
+      name: httpd
+      state: latest
+  - name: ensure that apache is running
+    service:
+      name: httpd
+      state: started
+  - name: ensure that postgresql
+    yum:
+      name: postgresql
+      state: latest
+  - name: ensure that postgresql is running
+    service:
+     name: postgresql
+     state: started
