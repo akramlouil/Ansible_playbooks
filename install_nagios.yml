@@ -100,5 +100,31 @@
      path: /etc/xinetd.d/nrpe
      regexp: '^only_from '
      line: 'only_from = 127.0.0.1 {{ ip_adrss.stdout }}'
+  - name: Restart xinetd service
+    service:
+     name: xinetd
+     state: restarted
+  - name: Organize Nagios Configuration
+    lineinfile:
+     path: /usr/local/nagios/etc/nagios.cfg 
+     regex: '^#cfg_dir'
+     line: cfg_dir=/usr/local/nagios/etc/servers
 
+  - name: create directory /usr/local/nagios/etc/servers
+    file:
+     path: /usr/local/nagios/etc/servers
+     state: directory 
+  - name: Configure Nagios Contacts
+    lineinfile: 
+     path: /usr/local/nagios/etc/objects/contacts.cfg
+     regex: '^email'
+     line: 'email                           akram.louil@advyteam.com        ; '
+  - name: Configure check_nrpe Command
+    blockinfile:
+     path: /usr/local/nagios/etc/objects/commands.cfg
+     block: |
+      define command{
+        command_name check_nrpe
+        command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
+      }  
 
