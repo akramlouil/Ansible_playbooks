@@ -126,5 +126,25 @@
       define command{
         command_name check_nrpe
         command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
-      }  
+      } 
+  - name: Ansible service with_items example
+    systemd:
+      name: "{{ item }}"
+      state: restarted
+      daemon_reload: yes
+    with_items:
+      - 'nagios'
+      - 'httpd'
+  - name: Modify /etc/httpd/conf.d/nagios.conf 1
+    lineinfile: 
+     path: /etc/httpd/conf.d/nagios.conf
+     regex: '^Order allow,deny'
+     line: '#Order allow,deny'
+  - name: Modify /etc/httpd/conf.d/nagios.conf 2
+    lineinfile:
+     path: /etc/httpd/conf.d/nagios.conf
+     regex: '^Allow from all'
+     line: '#Allow from all'
 
+
+ 
