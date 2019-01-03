@@ -21,6 +21,7 @@
   - name: ensure that group 'nagcmd' exist
     group:
       name: nagcmd
+      name: nagios
       state: present
   - name: create user nagios
     user:
@@ -34,8 +35,8 @@
   - name: Uncompress nagios Binaires 
     command: "{{ item }}"
     with_items:
-      - tar xvf nagios-*.tar.gz
-      - cd nagios-*
+      - pwd 
+      - /bin/tar xvf nagios-4.1.1.tar.gz
     args:
      chdir: /home/{{ansible_ssh_user}}
 
@@ -44,12 +45,60 @@
     with_items:
       - ./configure --with-command-group=nagcmd
       - make all
-      - sudo make install
+      - make install
       - make install-commandmode
       - make install-init
       - make install-config
       - make install-webconf
       - /usr/bin/make install
     args:
+     chdir: /home/{{ansible_ssh_user}}/nagios-4.1.1
+  - name: add apache to nagcmd group
+    user: 
+     name: apache 
+     group: nagcmd
+  - name: Install Nagios Plugins
+    shell: curl -L -O http://nagios-plugins.org/download/nagios-plugins-2.1.1.tar.gz | sudo bash -
+    args:
      chdir: /home/{{ansible_ssh_user}}
+  - name : Uncompress Nagios Plugins
+    command: tar xvf nagios-plugins-2.1.1.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name : Compile plugin binaires 
+    command: "{{ item }}"
+    with_items:
+     - ./configure --with-nagios-user=nagios --with-nagios-group=nagios --with-openssl
+     - make 
+     - make install
+    args:
+     chdir: /home/{{ansible_ssh_user}}/nagios-plugins-2.1.1
+  - name: Install NRPE
+    shell: curl -L -O http://downloads.sourceforge.net/project/nagios/nrpe-2.x/nrpe-2.15/nrpe-2.15.tar.gz  | sudo bash -
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Uncompress NRPE
+    command: tar xvf nrpe-2.15.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Configure NRPE with these
+    command: "{{ item }}"
+    with_items:
+     - ./configure --enable-command-args --with-nagios-user=nagios --with-nagios-group=nagios --with-ssl=/usr/bin/openssl --with-ssl-lib=/usr/lib/x86_64-linux-gnu
+     - make all
+     - make install
+     - make install-xinetd
+     - make install-daemon-config
+    args:
+     chdir: /home/{{ansible_ssh_user}}/nrpe-2.15
+  - name: Get IP adress and store it in ip_adrss variable
+    shell: /sbin/ifconfig eth1 | grep 'inet ' | awk '{print $2}'
+    register: ip_adrss
+
+  - name: Modify /etc/xinetd.d/nrpe file
+    lineinfile:
+     path: /etc/xinetd.d/nrpe
+     regexp: '^only_from '
+     line: 'only_from = 127.0.0.1 {{ ip_adrss.stdout }}'
+
 
