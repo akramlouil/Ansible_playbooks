@@ -4,9 +4,19 @@
   become: yes
   become_method: sudo
   tasks:
+  - name: yum update 
+    command: yum update -y 
+  
+  - name: Remove httpd
+    yum:
+     name: httpd
+     state: absent 
   - name: Install nagios
     yum:
       name:
+       - python-pip
+       - pexpect
+       - httpd
        - gcc
        - glibc
        - glibc-common 
@@ -18,6 +28,8 @@
        - xinetd 
        - unzip
       state: latest
+  - name: Install last version of pexpect 
+    command : pip install pexpect
   - name: ensure that group 'nagcmd' exist
     group:
       name: nagcmd
@@ -105,20 +117,20 @@
      name: xinetd
      state: restarted
   - name: Organize Nagios Configuration
-    lineinfile:
+    replace:
      path: /usr/local/nagios/etc/nagios.cfg 
-     regex: '^#cfg_dir'
-     line: cfg_dir=/usr/local/nagios/etc/servers
+     regexp: '^#cfg_dir=/usr/local/nagios/etc/servers'
+     replace: cfg_dir=/usr/local/nagios/etc/servers
 
   - name: create directory /usr/local/nagios/etc/servers
     file:
      path: /usr/local/nagios/etc/servers
      state: directory 
   - name: Configure Nagios Contacts
-    lineinfile: 
+    replace: 
      path: /usr/local/nagios/etc/objects/contacts.cfg
-     regex: '^email'
-     line: 'email                           akram.louil@advyteam.com        ; '
+     regexp: '^ *email'
+     replace: 'email                           akram.louil@advyteam.com        ; '
   - name: Configure check_nrpe Command
     blockinfile:
      path: /usr/local/nagios/etc/objects/commands.cfg
@@ -126,7 +138,14 @@
       define command{
         command_name check_nrpe
         command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
-      } 
+      }
+  - name: Change password of nagiosadmin
+    expect:
+     command: htpasswd -c /usr/local/nagios/etc/htpasswd.users nagiosadmin
+     responses:
+      Question: 
+       - nagiosadmin
+       - nagiosadmin 
   - name: Ansible service with_items example
     systemd:
       name: "{{ item }}"
@@ -135,16 +154,34 @@
     with_items:
       - 'nagios'
       - 'httpd'
+    ignore_errors: yes
   - name: Modify /etc/httpd/conf.d/nagios.conf 1
-    lineinfile: 
+    replace: 
      path: /etc/httpd/conf.d/nagios.conf
-     regex: '^Order allow,deny'
-     line: '#Order allow,deny'
+     regexp: '^Order allow,deny'
+     replace: '#Order allow,deny'
   - name: Modify /etc/httpd/conf.d/nagios.conf 2
-    lineinfile:
+    replace:
      path: /etc/httpd/conf.d/nagios.conf
-     regex: '^Allow from all'
-     line: '#Allow from all'
+     regexp: '^Allow from all'
+     replace: '#Allow from all'
+  - name: Other modification 
+    replace:
+     path: /etc/httpd/conf.d/nagios.conf
+     regexp: "{{ item.regexp }}"
+     replace: "{{ item.replace }}"
+    with_items:
+      - { regexp: '^# Order deny,allow',  replace: 'Order deny,allow' }
+      - { regexp: '^# Deny from all',  replace: 'Deny from all' }
+      - { regexp: '^# Allow from 127.0.0.1' , replace: 'Allow from 127.0.0.1'}
+    ignore_errors: yes 
+  - name: Restart nagios and httpd 
+    service:
+     name: "{{ item }}"
+     state: restarted
+    with_items:
+     - httpd
+     - nagios
 
 
- 
+  
