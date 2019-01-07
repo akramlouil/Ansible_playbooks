@@ -4,16 +4,27 @@
   become: yes
   become_method: sudo
   tasks:
+  
+  - name: Complete yum transactions 
+    command: yum-complete-transaction --cleanup-only
   - name: yum update 
     command: yum update -y 
   
   - name: Remove httpd
     yum:
      name: httpd
-     state: absent 
-  - name: Install nagios
+     state: absent
+  - name: Install epel-release !
     yum:
       name:
+       - epel-release
+      state: latest
+  - name: yum update
+    command: yum update -y
+  - name: Install necessary packages ! 
+    yum:
+      name:
+       - epel-release
        - python-pip
        - pexpect
        - httpd
@@ -29,18 +40,25 @@
        - unzip
       state: latest
   - name: Install last version of pexpect 
-    command : pip install pexpect
+    command : "{{ item }}"
+    with_items: 
+     - pip install pexpect
+     - pip install --upgrade pip
   - name: ensure that group 'nagcmd' exist
     group:
-      name: nagcmd
-      name: nagios
-      state: present
+     name: nagcmd
+     state: present
+  - name: ensure that group 'nagios' exist
+    group:
+     name: nagios
+     state: present
+
   - name: create user nagios
     user:
       name: nagios
       group: nagcmd
   - name: download nagios Curl 
-    shell: curl -L -O https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.1.1.tar.gz | sudo bash -
+    shell: curl -L -O https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.1.1.tar.gz 
     args:
      warn: no
      chdir: /home/{{ansible_ssh_user}}
@@ -62,7 +80,6 @@
       - make install-init
       - make install-config
       - make install-webconf
-      - /usr/bin/make install
     args:
      chdir: /home/{{ansible_ssh_user}}/nagios-4.1.1
   - name: add apache to nagcmd group
@@ -70,7 +87,7 @@
      name: apache 
      group: nagcmd
   - name: Install Nagios Plugins
-    shell: curl -L -O http://nagios-plugins.org/download/nagios-plugins-2.1.1.tar.gz | sudo bash -
+    shell: curl -L -O http://nagios-plugins.org/download/nagios-plugins-2.1.1.tar.gz 
     args:
      chdir: /home/{{ansible_ssh_user}}
   - name : Uncompress Nagios Plugins
@@ -86,7 +103,7 @@
     args:
      chdir: /home/{{ansible_ssh_user}}/nagios-plugins-2.1.1
   - name: Install NRPE
-    shell: curl -L -O http://downloads.sourceforge.net/project/nagios/nrpe-2.x/nrpe-2.15/nrpe-2.15.tar.gz  | sudo bash -
+    shell: curl -L -O http://downloads.sourceforge.net/project/nagios/nrpe-2.x/nrpe-2.15/nrpe-2.15.tar.gz  
     args:
      chdir: /home/{{ansible_ssh_user}}
   - name: Uncompress NRPE
@@ -108,10 +125,10 @@
     register: ip_adrss
 
   - name: Modify /etc/xinetd.d/nrpe file
-    lineinfile:
+    replace:
      path: /etc/xinetd.d/nrpe
-     regexp: '^only_from '
-     line: 'only_from = 127.0.0.1 {{ ip_adrss.stdout }}'
+     regexp: '^ *only_from '
+     replace: 'only_from = 127.0.0.1 {{ ip_adrss.stdout }}'
   - name: Restart xinetd service
     service:
      name: xinetd
@@ -140,12 +157,7 @@
         command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
       }
   - name: Change password of nagiosadmin
-    expect:
-     command: htpasswd -c /usr/local/nagios/etc/htpasswd.users nagiosadmin
-     responses:
-      Question: 
-       - nagiosadmin
-       - nagiosadmin 
+    command: htpasswd -b -c /usr/local/nagios/etc/htpasswd.users nagiosadmin nagiosadmin
   - name: Ansible service with_items example
     systemd:
       name: "{{ item }}"
