@@ -1,0 +1,156 @@
+---
+- hosts: all
+  remote_user: ansible_user
+  become: yes
+  become_method: sudo
+  tasks:
+   - name : remove current mariadb
+     yum: 
+      name: 
+       - mariadb*
+       - mysql*
+      state: absent
+   - name: install wget package
+     yum: 
+      name:
+       - wget
+       - expect 
+      state: latest
+   - name: Download and add the repository MYSQL
+     command: "{{ item }} " 
+     with_items:
+      - pwd
+      - wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+      - pwd 
+      - sudo rpm -ivh mysql-community-release-el7-5.noarch.rpm
+     args:
+      chdir: /tmp
+   - name: Yum update 
+     command: yum update -y 
+   - name: install mysql 
+     yum:
+      name: mysql-server
+      state: latest
+   - name: Update necessary packages !
+     yum:
+      name: 
+       - httpd
+       - mariadb-server
+       - php 
+       - php-mysql
+      state: latest
+   - name: start mysql
+     systemd:
+      name: "{{ item }}" 
+      state: restarted
+      daemon_reload: yes
+     with_items:
+       - 'mysqld'
+       - 'httpd'
+     ignore_errors: yes 
+   - name: mysql_secure_installation launch !
+     shell: |
+      set timeout 10
+      spawn mysql_secure_installation
+      expect "Enter current password for root (enter for none):"
+      send "$MYSQL\n"
+      expect "Change the root password?"
+      send "n\n"
+      expect "Remove anonymous users?"
+      send "y\n"
+      expect "Disallow root login remotely?"
+      send "y\n"
+      expect "Remove test database and access to it?"
+      send "y\n"
+      expect "Reload privilege tables now?"
+      send "y\n"
+      exit 0
+     args:
+      executable: /usr/bin/expect 
+   - name : enable services 
+     systemd:
+      name: "{{ item }}"
+      enabled: yes 
+     with_items:
+       - 'httpd'
+       - 'mysqld'
+   - name: Install the required packages
+     yum:
+      name: 
+       - gcc
+       - glibc
+       - glibc-common 
+       - wget
+       - gd
+       - gd-devel 
+       - perl 
+       - postfix
+      state: latest 
+   - name: Download and Install Nagios Core
+     shell: wget -O nagioscore.tar.gz https://github.com/NagiosEnterprises/nagioscore/archive/nagios-4.4.2.tar.gz
+     args:
+      chdir: /tmp
+   - name: uncompress Nagios Core
+     shell: tar xzf nagioscore.tar.gz
+     args:
+      chdir: /tmp
+   - name: Config nagios core 
+     shell: ./configure
+     args:
+      chdir: /tmp/nagioscore-nagios-4.4.2
+   - name: compile Nagios Core
+     command: "{{ item }}"
+     with_items:
+      - make all
+      - make install-groups-users
+      - usermod -a -G nagios apache
+      - make install
+      - make install-daemoninit
+      - make install-config
+      - make install-commandmode
+      - make install-webconf
+     args:
+      chdir: /tmp/nagioscore-nagios-4.4.2
+   - name: restart httpd service 
+     service:
+      name: httpd
+      state: restarted
+   - name: Change password of nagiosadmin
+     command: htpasswd -b -c /usr/local/nagios/etc/htpasswd.users nagiosadmin nagiosadmin
+   - name:  Install Nagios Plugins 1 
+     yum: 
+      name: 
+       - gcc
+       - glibc
+       - glibc-common
+       - make 
+       - gettext
+       - automake
+       - autoconf
+       - wget
+       - openssl-devel
+       - net-snmp 
+       - net-snmp-utils
+       - epel-release
+       - perl-Net-SNMP
+      state: latest
+   - name:  Install Nagios Plugins 2
+     shell: "{{ item }}"
+     with_items:
+      - wget --no-check-certificate -O nagios-plugins.tar.gz https://github.com/nagios-plugins/nagios-plugins/archive/release-2.2.1.tar.gz
+      - tar zxf nagios-plugins.tar.gz
+     args:
+      chdir: /tmp
+   - name: Install Nagios Plugins 2
+     shell: "{{ item }}"
+     with_items:
+      - ./tools/setup
+      - ./configure
+      - make
+      - make install
+     args:
+      chdir: /tmp/nagios-plugins-release-2.2.1/
+   - name: restart nagios service 
+     service:
+      name: nagios 
+      state: restarted   
