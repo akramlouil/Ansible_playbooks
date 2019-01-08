@@ -1,0 +1,45 @@
+---
+- hosts: freeia_server
+  remote_user: ansible_user
+  become: yes
+  become_method: sudo
+  tasks:
+   - name: remove ipa-server before install/re-install
+     yum:
+      name: ipa-server
+      state: absent  
+   - name: Ensure that epel-release is installed
+     yum:
+      name:
+       - epel-release
+       - bind-utils
+       - vim
+      state: latest
+   - name: Yum update
+     command: yum update -y
+   - name: install ipa-server
+     yum:
+      name: 
+       - ipa-server
+       - ipa-server-dns
+       - bindipa-server  
+       - bind-dyndb-ldap
+      state: latest
+     ignore_errors: yes
+   - name: get public ip 
+     shell: ifconfig eth1 | grep 'inet ' | awk '{ print $2}'
+     register: ip_adress
+   - name : get hostname
+     shell: hostname
+     register: hstnme
+   - name: test if  hosts is already declared in /etc/hosts file
+     shell: grep '{{ ip_adress.stdout }} {{ hstnme.stdout }}'  /etc/hosts
+     register: test
+     ignore_errors: yes
+
+   - name: update /etc/hosts
+     lineinfile:
+      path: /etc/hosts 
+      line : "{{ ip_adress.stdout }}  {{ hstnme.stdout }}" 
+     when :  test.stdout == "" 
+     

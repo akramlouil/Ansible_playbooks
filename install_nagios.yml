@@ -1,0 +1,199 @@
+---
+- hosts: Myservers
+  remote_user: ansible_user
+  become: yes
+  become_method: sudo
+  tasks:
+  
+  - name: Complete yum transactions 
+    command: yum-complete-transaction --cleanup-only
+  - name: yum update 
+    command: yum update -y 
+  
+  - name: Remove httpd
+    yum:
+     name: httpd
+     state: absent
+  - name: Install epel-release !
+    yum:
+      name:
+       - epel-release
+      state: latest
+  - name: yum update
+    command: yum update -y
+  - name: Install necessary packages ! 
+    yum:
+      name:
+       - epel-release
+       - python-pip
+       - pexpect
+       - httpd
+       - gcc
+       - glibc
+       - glibc-common 
+       - gd
+       - gd-devel
+       - make 
+       - net-snmp 
+       - openssl-devel 
+       - xinetd 
+       - unzip
+      state: latest
+  - name: Install last version of pexpect 
+    command : "{{ item }}"
+    with_items: 
+     - pip install pexpect
+     - pip install --upgrade pip
+  - name: ensure that group 'nagcmd' exist
+    group:
+     name: nagcmd
+     state: present
+  - name: ensure that group 'nagios' exist
+    group:
+     name: nagios
+     state: present
+
+  - name: create user nagios
+    user:
+      name: nagios
+      group: nagcmd
+  - name: download nagios Curl 
+    shell: curl -L -O https://assets.nagios.com/downloads/nagioscore/releases/nagios-4.1.1.tar.gz 
+    args:
+     warn: no
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Uncompress nagios Binaires 
+    command: "{{ item }}"
+    with_items:
+      - pwd 
+      - /bin/tar xvf nagios-4.1.1.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+
+  - name: Compile binaires
+    command: "{{ item }}"
+    with_items:
+      - ./configure --with-command-group=nagcmd
+      - make all
+      - make install
+      - make install-commandmode
+      - make install-init
+      - make install-config
+      - make install-webconf
+    args:
+     chdir: /home/{{ansible_ssh_user}}/nagios-4.1.1
+  - name: add apache to nagcmd group
+    user: 
+     name: apache 
+     group: nagcmd
+  - name: Install Nagios Plugins
+    shell: curl -L -O http://nagios-plugins.org/download/nagios-plugins-2.1.1.tar.gz 
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name : Uncompress Nagios Plugins
+    command: tar xvf nagios-plugins-2.1.1.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name : Compile plugin binaires 
+    command: "{{ item }}"
+    with_items:
+     - ./configure --with-nagios-user=nagios --with-nagios-group=nagios --with-openssl
+     - make 
+     - make install
+    args:
+     chdir: /home/{{ansible_ssh_user}}/nagios-plugins-2.1.1
+  - name: Install NRPE
+    shell: curl -L -O http://downloads.sourceforge.net/project/nagios/nrpe-2.x/nrpe-2.15/nrpe-2.15.tar.gz  
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Uncompress NRPE
+    command: tar xvf nrpe-2.15.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+  - name: Configure NRPE with these
+    command: "{{ item }}"
+    with_items:
+     - ./configure --enable-command-args --with-nagios-user=nagios --with-nagios-group=nagios --with-ssl=/usr/bin/openssl --with-ssl-lib=/usr/lib/x86_64-linux-gnu
+     - make all
+     - make install
+     - make install-xinetd
+     - make install-daemon-config
+    args:
+     chdir: /home/{{ansible_ssh_user}}/nrpe-2.15
+  - name: Get IP adress and store it in ip_adrss variable
+    shell: /sbin/ifconfig eth1 | grep 'inet ' | awk '{print $2}'
+    register: ip_adrss
+
+  - name: Modify /etc/xinetd.d/nrpe file
+    replace:
+     path: /etc/xinetd.d/nrpe
+     regexp: '^ *only_from '
+     replace: 'only_from = 127.0.0.1 {{ ip_adrss.stdout }}'
+  - name: Restart xinetd service
+    service:
+     name: xinetd
+     state: restarted
+  - name: Organize Nagios Configuration
+    replace:
+     path: /usr/local/nagios/etc/nagios.cfg 
+     regexp: '^#cfg_dir=/usr/local/nagios/etc/servers'
+     replace: cfg_dir=/usr/local/nagios/etc/servers
+
+  - name: create directory /usr/local/nagios/etc/servers
+    file:
+     path: /usr/local/nagios/etc/servers
+     state: directory 
+  - name: Configure Nagios Contacts
+    replace: 
+     path: /usr/local/nagios/etc/objects/contacts.cfg
+     regexp: '^ *email'
+     replace: 'email                           akram.louil@advyteam.com        ; '
+  - name: Configure check_nrpe Command
+    blockinfile:
+     path: /usr/local/nagios/etc/objects/commands.cfg
+     block: |
+      define command{
+        command_name check_nrpe
+        command_line $USER1$/check_nrpe -H $HOSTADDRESS$ -c $ARG1$
+      }
+  - name: Change password of nagiosadmin
+    command: htpasswd -b -c /usr/local/nagios/etc/htpasswd.users nagiosadmin nagiosadmin
+  - name: Ansible service with_items example
+    systemd:
+      name: "{{ item }}"
+      state: restarted
+      daemon_reload: yes
+    with_items:
+      - 'nagios'
+      - 'httpd'
+    ignore_errors: yes
+  - name: Modify /etc/httpd/conf.d/nagios.conf 1
+    replace: 
+     path: /etc/httpd/conf.d/nagios.conf
+     regexp: '^Order allow,deny'
+     replace: '#Order allow,deny'
+  - name: Modify /etc/httpd/conf.d/nagios.conf 2
+    replace:
+     path: /etc/httpd/conf.d/nagios.conf
+     regexp: '^Allow from all'
+     replace: '#Allow from all'
+  - name: Other modification 
+    replace:
+     path: /etc/httpd/conf.d/nagios.conf
+     regexp: "{{ item.regexp }}"
+     replace: "{{ item.replace }}"
+    with_items:
+      - { regexp: '^# Order deny,allow',  replace: 'Order deny,allow' }
+      - { regexp: '^# Deny from all',  replace: 'Deny from all' }
+      - { regexp: '^# Allow from 127.0.0.1' , replace: 'Allow from 127.0.0.1'}
+    ignore_errors: yes 
+  - name: Restart nagios and httpd 
+    service:
+     name: "{{ item }}"
+     state: restarted
+    with_items:
+     - httpd
+     - nagios
+
+
+  
