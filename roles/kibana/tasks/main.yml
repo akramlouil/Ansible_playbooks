@@ -1,0 +1,102 @@
+---
+
+# Add Kibana rpm  key
+
+- name:
+  rpm_key:
+    state: present
+    key: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
+
+# Add the kibana repo :
+
+- name: Ansible create file with content example
+  copy:
+      dest: "/etc/yum.repos.d/elasticsearch.repo"
+      content: |
+        [kibana-6.x]
+        name=Kibana repository for 6.x packages
+        baseurl=https://artifacts.elastic.co/packages/6.x/yum
+        gpgcheck=1
+        gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        enabled=1
+        autorefresh=1
+        type=rpm-md
+
+# Installing Kibana
+
+- name: Install Kibana
+  yum:
+   name: kibana
+   state: present
+
+
+# Configurations
+
+- name: Updating the config file to allow outside access
+  lineinfile:
+   destfile: /etc/kibana/kibana.yml
+   regexp: 'server.host:'
+   line: 'server.host: 0.0.0.0'
+
+- name: Defining server port
+  lineinfile:
+   destfile: /etc/kibana/kibana.yml
+   regexp: 'server.port:'
+   line: 'server.port: 5601'
+    
+- name: Defining Elasticsearch URL
+  lineinfile:
+   destfile: /etc/kibana/kibana.yml
+   regexp: 'elasticsearch.url:'
+   line: 'elasticsearch.url: "http://localhost:9200"' 
+
+
+# Enable Kibana
+- name: enable Kibana to start up every time your server boots
+  systemd:
+    name: kibana
+    enabled: yes
+    masked: no
+
+# Start Kibana
+- name: Starting kibana
+  systemd:
+   name: kibana
+   state: started
+
+# create an administrative Kibana user
+- name: createUser
+  command: echo "kibanaadmin:`openssl passwd -apr1`" | sudo tee -a /etc/nginx/htpasswd.users
+
+# create an Nginx server block file
+- name: nginx server file
+  copy:
+      dest: "/etc/nginx/conf.d/example.com.conf"
+      content: |
+         server {
+           listen 80;
+           server_name example.com www.example.com;
+           auth_basic "Restricted Access";
+           auth_basic_user_file /etc/nginx/htpasswd.users;
+           location / {
+           proxy_pass http://localhost:5601;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+              }
+         }
+
+# Restart Nginx 
+- name: Retarting Nginx 
+  systemd:
+   name: nginx
+   state: restarted
+
+# allow Nginx to access the proxied service :
+- name: access the proxied server
+  command: setsebool httpd_can_network_connect 1 -P
+
+
+

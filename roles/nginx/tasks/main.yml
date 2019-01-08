@@ -1,0 +1,25 @@
+---
+# Add the Nginx repo :
+
+- name: Add Nginx repo
+  copy:
+      dest: "/etc/yum.repos.d/nginx.repo"
+      content: |
+         [nginx]
+         name=nginx repo
+         baseurl=http://nginx.org/packages/mainline/centos/7/$basearch/
+         gpgcheck=0
+         enabled=1
+
+# Install Nginx : 
+
+- name: Install Nginx
+  yum:
+    name: nginx
+    state: present
+# Start Nginx : 
+
+- name: Starting nginx
+  systemd:
+      name: nginx
+      state: started 
