@@ -1,0 +1,9 @@
+- hosts: Myservers
+  remote_user: ansadm
+  become: yes
+  roles:
+  - { role: update }
+  - { role: nginx }
+  - { role: elasticsearch }
+  - { role: kibana }
+

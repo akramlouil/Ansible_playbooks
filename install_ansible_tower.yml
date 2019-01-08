@@ -1,0 +1,38 @@
+---
+- hosts: Myservers
+  remote_user: achref
+  become: yes
+  become_method: sudo
+  tasks:
+
+  - name: yum update
+    command: yum update -y
+
+  - name: download ansible tower Curl
+    shell: curl -L -O https://releases.ansible.com/ansible-tower/setup/ansible-tower-setup-latest.tar.gz
+    args:
+     warn: no
+     chdir: /home/{{ansible_ssh_user}}
+
+  - name: uncompress tower tar
+    command: "{{ item }}"
+    with_items:
+     - pwd
+     - /bin/tar xvzf ansible-tower-setup-latest.tar.gz
+    args:
+     chdir: /home/{{ansible_ssh_user}}
+
+  - name : Modify inventory
+    replace:
+     path: /home/{{ansible_ssh_user}}/ansible-tower-setup-3.3.3-1/inventory
+     regexp: "{{ item.regexp }}"
+     replace: "{{ item.replace }}"
+    with_items:
+     - { regexp: '^admin_password=*',  replace: 'admin_password=admin' }
+     - { regexp: '^pg_password=*',  replace: 'pg_password=admin' }
+     - { regexp: '^rabbitmq_password=*',  replace: 'rabbitmq_password=admin' }
+  
+  - name: Compile binaires
+    shell: ./setup
+    args:
+     chdir: /home/{{ansible_ssh_user}}/ansible-tower-setup-3.3.3.1   

@@ -1,0 +1,12 @@
+---
+# Update 
+
+- name: Update 
+  command: yum update -y
+
+# Installing Java 8
+
+- name: Install Java
+  yum:
+    name: java-1.8.0-openjdk
+    state: present
