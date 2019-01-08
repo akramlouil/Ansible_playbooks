@@ -24,13 +24,13 @@
 
   - name : Modify inventory
     replace:
-     path: /home/achref/ansible-tower-setup-3.3.3-1/inventory
+     path: /home/{{ansible_ssh_user}}/ansible-tower-setup-3.3.3-1/inventory
      regexp: "{{ item.regexp }}"
      replace: "{{ item.replace }}"
     with_items:
-     - { regexp: '^admin_password=',  replace: 'admin_password=admin' }
-     - { regexp: '^pg_password=',  replace: 'pg_password=admin' }
-     - { regexp: '^rabbitmq_password=',  replace: 'rabbitmq_password=admin' }
+     - { regexp: '^admin_password=*',  replace: 'admin_password=admin' }
+     - { regexp: '^pg_password=*',  replace: 'pg_password=admin' }
+     - { regexp: '^rabbitmq_password=*',  replace: 'rabbitmq_password=admin' }
   
   - name: Compile binaires
     shell: ./setup
