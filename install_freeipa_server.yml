@@ -1,0 +1,31 @@
+---
+- hosts: freeia_server
+  remote_user: ansible_user
+  become: yes
+  become_method: sudo
+  tasks:
+   - name: remove ipa-server before install/re-install
+     yum:
+      name: ipa-server
+      state: absent  
+   - name: Ensure that epel-release is installed
+     yum:
+      name:
+       - epel-release
+       - bind-utils
+       - vim
+      state: latest
+   - name: Yum update
+     command: yum update -y
+   - name: install ipa-server
+     yum:
+      name: "{{ item }}"
+      with_items: 
+       - ipa-server
+       - ipa-server-dns
+       - bindipa-server  
+       - bind-dyndb-ldap
+      state: latest
+   - name:
+   
+     
