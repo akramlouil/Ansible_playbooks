@@ -19,13 +19,27 @@
      command: yum update -y
    - name: install ipa-server
      yum:
-      name: "{{ item }}"
-      with_items: 
+      name: 
        - ipa-server
        - ipa-server-dns
        - bindipa-server  
        - bind-dyndb-ldap
       state: latest
-   - name:
-   
+     ignore_errors: yes
+   - name: get public ip 
+     shell: ifconfig eth1 | grep 'inet ' | awk '{ print $2}'
+     register: ip_adress
+   - name : get hostname
+     shell: hostname
+     register: hstnme
+   - name: test if  hosts is already declared in /etc/hosts file
+     shell: grep '{{ ip_adress.stdout }} {{ hstnme.stdout }}'  /etc/hosts
+     register: test
+     ignore_errors: yes
+
+   - name: update /etc/hosts
+     lineinfile:
+      path: /etc/hosts 
+      line : "{{ ip_adress.stdout }}  {{ hstnme.stdout }}" 
+     when :  test.stdout == "" 
      
