@@ -33,6 +33,6 @@
      - { regexp: '^rabbitmq_password=*',  replace: 'rabbitmq_password=admin' }
   
   - name: Compile binaires
-    shell: ./setup
+    shell: ./setup.sh
     args:
-     chdir: /home/{{ansible_ssh_user}}/ansible-tower-setup-3.3.3.1   
+     chdir: /home/{{ansible_ssh_user}}/ansible-tower-setup-3.3.3-1   
