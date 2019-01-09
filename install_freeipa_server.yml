@@ -4,6 +4,17 @@
   become: yes
   become_method: sudo
   tasks:
+   - name: uninstall ipa-server 
+     shell: |
+      set timeout 10
+      spawn ipa-server-install --uninstall -U
+      expect "Are you sure you want to continue with the uninstall procedure?"
+      send "yes\n"
+      expect {Are you sure you want to continue with the uninstall procedure? [no]}
+      send "yes\n"
+      exit 0 
+     args:
+      executable: /usr/bin/expect
    - name: remove ipa-server before install/re-install
      yum:
       name: ipa-server
@@ -22,7 +33,6 @@
       name: 
        - ipa-server
        - ipa-server-dns
-       - bindipa-server  
        - bind-dyndb-ldap
       state: latest
      ignore_errors: yes
@@ -42,4 +52,28 @@
       path: /etc/hosts 
       line : "{{ ip_adress.stdout }}  {{ hstnme.stdout }}" 
      when :  test.stdout == "" 
-     
+   - name: Install freeipa server 
+     shell: |
+      set timeout 10
+      spawn ipa-server-install
+      expect {Do you want to configure integrated DNS (BIND)? [no]}
+      send "no\n"
+      expect " Server host name"
+      send "{{ hstnme.stdout }}\n"
+      expect "Please confirm the domain name"
+      send "\n"
+      expect "Please provide a realm name"
+      send "\n"
+      expect "Directory Manager password:"
+      send "advy123456\n"
+      expect {Password (confirm):}
+      send "advy123456\n"
+      expect "IPA admin password:"
+      send "advy123456\n"
+      expect {Password (confirm):}
+      send "advy123456\n"
+      expect {Continue to configure the system with these values?}
+      send "yes\n"
+      exit  0
+     args:
+      executable: /usr/bin/expect
