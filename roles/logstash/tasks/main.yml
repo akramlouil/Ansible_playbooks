@@ -67,7 +67,7 @@
     dest: "/etc/logstash/conf.d/30-elasticsearch-output.conf"
     content: |
     output {
-  elasticsearch {
+    elasticsearch {
     hosts => ["localhost:9200"]
     manage_template => false
     index => "%{[@metadata][beat]}-%{[@metadata][version]}-%{+YYYY.MM.dd}"

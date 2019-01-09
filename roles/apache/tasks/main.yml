@@ -1,62 +1,34 @@
 ---
 #
-# Installing Elasticsearch
+# Installing Apache httpd
 #
 
-# Add Elasticsearch apt key
+# Installing Apache 
 
-- name: 
-  rpm_key:
-    state: present
-    key: "https://artifacts.elastic.co/GPG-KEY-elasticsearch"
-
-# Add the Elasticsearch apt repo.:
-
-- name: Ansible create file with content example
-  copy:
-    dest: "/etc/yum.repos.d/elasticsearch.repo"
-    content: |
-        [elasticsearch-6.x]
-        name=Elasticsearch repository for 6.x packages
-        baseurl=https://artifacts.elastic.co/packages/6.x/yum
-        gpgcheck=1
-        gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
-        enabled=1
-        autorefresh=1
-        type=rpm-md
-
-# Installing Elasticsearch
-
-- name: Install Elasticsearch
+- name: Install apache httpd
   yum:
-   name: elasticsearch
+   name: httpd
    state: present
    
-# Update Elasticsearch config file to allow access. 
+# Security config of apache 
 
-- name: Updating the config file to allow outside access
+- name: Security config
   lineinfile:
-   destfile: /etc/elasticsearch/elasticsearch.yml
-   regexp: 'network.host:'
-   line: 'network.host: 0.0.0.0'
- 
-# Update Elasticsearch port in config file 
+    path: /etc/httpd/conf/httpd.conf
+    line: '{{ item.line }}'
+  with_items:
+     - line: 'ServerSignature Off'
+     - line: 'ServerTokens Prod'
 
-- name: Updating the port in config file 
-  lineinfile:
-   destfile: /etc/elasticsearch/elasticsearch.yml
-   regexp: 'http.port:'
-   line: 'http.port: 9200'
-
-# Enable Elasticsearch
-- name: enable Elasticsearch to start up every time your server boots
+# Enable Apache
+- name: enable apache to start up every time your server boots
   systemd:
-    name: elasticsearch
+    name: httpd
     enabled: yes
     masked: no
 
-# Start Elasticsearch
-- name: Starting Elasticsearch
+# Restart Apache
+- name: Restarting apache
   systemd:
-   name: elasticsearch
-   state: started
+   name: httpd
+   state: restarted

@@ -1,0 +1,35 @@
+---
+#
+# Installing Zabbix
+#
+ 
+- name : Add repo for zabbix
+  command : rpm -ivh https://repo.zabbix.com/zabbix/4.0/rhel/7/x86_64/zabbix-release-4.0-1.el7.noarch.rpm
+
+- name: Install Zabbix4 Server and frontend with MySQL support
+  command : yum install zabbix-server-mysql  zabbix-web-mysql zabbix-agent zabbix-get
+   
+- name : Import Zabbix Server database schema
+  command : zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p zabbix
+
+- name: Configure and start Zabbix server
+  lineinfile:
+    path: /etc/zabbix/zabbix_server.conf
+    line: '{{ item }}'
+  with_items:
+     - 'DBName=zabbix'
+     - 'DBUser=zabbix'
+     - 'DBPassword=zabbix'
+
+# Enable Zabbix
+- name: enable zabbix to start up every time your server boots
+  systemd:
+    name: zabbix-server
+    enabled: yes
+    masked: no
+
+# Restart Zabbix
+- name: Restarting zabbix
+  systemd:
+   name: zabbix-server
+   state: restarted

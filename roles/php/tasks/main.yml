@@ -1,0 +1,41 @@
+---
+#
+# Installing PHP
+#
+
+# ## RHEL/CentOS 7 64-Bit ##
+
+
+#- name: Install wget
+#  command: sudo yum install wget
+
+- name: Install epl-repo
+  shell: |
+    wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    rpm -ivh epel-release-latest-7.noarch.rpm
+
+- name: install pexpect
+  shell: |
+    wget http://widehat.opensuse.org/opensuse/distribution/leap/42.3/repo/oss/suse/noarch/python-pexpect-3.3-6.1.noarch.rpm
+    rpm -ivh python-pexpect-3.3-6.1.noarch.rpm
+
+- name: Install remi
+  expect:
+    command: yum install http://rpms.remirepo.net/enterprise/remi-release-7.rpm
+    responses:
+      '[y/d/N]:': y
+
+- name: Install & Configure php 
+  shell: |
+     yum-config-manager --disable remi-php54
+     yum-config-manager --enable remi-php72
+     yum -y install php php-pear php-cgi php-common php-mbstring php-snmp php-gd php-xml php-mysql php-gettext php-bcmath
+
+- name: Set PHP timezone
+  command: sed -i "s/^;date.timezone =$/date.timezone = \"Africa\/Nairobi\"/" /etc/php.ini 
+
+# Restart Apache
+- name: Restarting apache
+  systemd:
+   name: httpd
+   state: restarted

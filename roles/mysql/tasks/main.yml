@@ -1,0 +1,33 @@
+---
+#
+# Installing installing MySQL server
+#
+
+# Add the official MySQL community repository
+
+#- name: Add the official MySQL community repository
+#  shell: | 
+#    yum localinstall https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm
+#    expect "Is this ok [y/d/N]"
+#    send "yes\n"    
+
+# Install MySQL 5.7 on CentOS
+
+- name: Install MySql 
+  command: yum install mysql-community-server
+
+# Start Mysql 
+
+- name : Start MySql
+  command : systemctl enable --now mysqld.service
+
+# create a database for Zabbix user
+
+- name : create a database for Zabbix user
+  shell : |
+    export db_pass="zabbix"
+    mysql -uroot -p <<MYSQL_SCRIPT
+    create database zabbix;
+    grant all privileges on zabbix.* to zabbix@'localhost' identified by '${db_pass}';
+    FLUSH PRIVILEGES;
+    MYSQL_SCRIPT

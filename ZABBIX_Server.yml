@@ -1,0 +1,10 @@
+- hosts: Myservers
+  remote_user: ansadm
+  become: yes
+  roles:
+  - { role: apache }
+  - { role: php }
+  - { role: mysql }
+  - { role: zabbix }
+
+
