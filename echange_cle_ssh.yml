@@ -1,14 +1,14 @@
 ---
-- hosts: Myservers 
-  remote_user: root
+- hosts: freeia_client3 
+  remote_user: ansible_user
   become: yes
   become_method: sudo 
-  gather_facts: no
+  gather_facts: yes
   tasks:
   - name : generate_key
     shell: 
      spawn ssh-keygen -t rsa
-     expect "Enter file in which to save the key (/home/achref/.ssh/id_rsa):"
+     expect "Enter file in which to save the key (/home/{{ansible_ssh_user}}/.ssh/id_rsa):"
      send "\n"
      expect "Enter passphrase (empty for no passphrase):"
      send "\n"
@@ -16,10 +16,12 @@
      send "\n"
      interact
     args:
+     chdir: /home/{{ansible_ssh_user}}/.ssh
      executable: /usr/bin/expect
 
   - name: modify /etc/ssh/sshd_config
     replace:
+     path: /etc/ssh/sshd_config
      regexp: '^PasswordAuthentication no'
      replace: 'PasswordAuthentication yes'
      backup: yes
@@ -31,13 +33,14 @@
  
   - name: share public key with clients
     shell: 
-     spawn ssh-copy-id -i {{ansible_ssh_user}}@192.168.33.30
-     expect "Are you sure you want to continue connecting (yes/no)?"
+     spawn ssh-copy-id -i {{ansible_ssh_user}}@192.168.33.17
+     expect {Are you sure you want to continue connecting (yes/no)?}
      send "yes\n"
-     expect "@192.168.33.30's password:"
+     expect "{{ansible_ssh_password}}@192.168.33.17's password:"
      send "{{ansible_ssh_password}}\n"
-     exit 0
+     interact
     args:
+     chdir: /home/{{ansible_ssh_user}}/.ssh
      executable: /usr/bin/expect
 
 
