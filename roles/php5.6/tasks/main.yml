@@ -1,0 +1,33 @@
+
+- name: Installing Webtatic Repo (EL7)
+  yum: name=https://mirror.webtatic.com/yum/el7/webtatic-release.rpm state=present
+
+- name: Installing PHP5.6 packages
+  yum: name={{ item }} state=latest
+  with_items:
+    - php56w
+    - php56w-gd
+    - php56w-mbstring
+    - php56w-mysql
+    - php56w-pdo
+    - php56w-xml
+    - php56w-pdo
+    - php56w-intl
+    - php56w-mcrypt
+    - php56w-pecl-apcu
+    - php56w-xmlrpc
+    - php56w-soap
+    - php56w-imap
+    - openssl
+    - httpd
+
+- name: Configure PHP 5.6
+  template: src=/Templates/php56.ini dest=/etc/php.ini
+
+# Restart Apache
+- name: Restarting apache
+  systemd:
+   name: httpd
+   state: restarted
+
+

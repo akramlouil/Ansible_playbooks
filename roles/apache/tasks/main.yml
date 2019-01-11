@@ -1,7 +1,34 @@
 ---
 #
-# Installing Apache httpd
+# Installing Apache and necessary packages
 #
+
+- name: Install wget
+  yum:
+   name:
+     - wget
+   state: latest
+  ignore_errors: yes 
+
+- name: Install epl-repo
+  shell: |
+    wget http://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm
+    rpm -ivh epel-release-latest-7.noarch.rpm
+  ignore_errors: yes
+ 
+- name: Install pip
+  yum:
+    name:
+       - python-pip
+    state: latest
+  ignore_errors: yes
+
+- name: Install last version of pexpect
+  command : "{{ item }}"
+  with_items:
+     - pip install pexpect
+     - pip install --upgrade pip
+  ignore_errors: yes
 
 # Installing Apache 
 

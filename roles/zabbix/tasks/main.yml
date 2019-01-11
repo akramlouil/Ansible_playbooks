@@ -3,14 +3,114 @@
 # Installing Zabbix
 #
  
-- name : Add repo for zabbix
-  command : rpm -ivh https://repo.zabbix.com/zabbix/4.0/rhel/7/x86_64/zabbix-release-4.0-1.el7.noarch.rpm
+#- name : Add repo for zabbix
+#  command : rpm -ivh https://repo.zabbix.com/zabbix/4.0/rhel/7/x86_64/zabbix-release-4.0-1.el7.noarch.rpm
 
-- name: Install Zabbix4 Server and frontend with MySQL support
-  command : yum install zabbix-server-mysql  zabbix-web-mysql zabbix-agent zabbix-get
-   
-- name : Import Zabbix Server database schema
-  command : zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p zabbix
+- name: Install libselinux-python (required by playbook)
+  yum: name=libselinux-python state=present
+
+- name: Install Zabbix Release Package
+  yum: name=http://repo.zabbix.com/zabbix/3.4/rhel/7/x86_64/zabbix-release-3.4-2.el7.noarch.rpm state=present
+
+- name: Installing Zabbix Server packages
+  yum: name={{ item }} state=present
+  with_items:
+    - zabbix-server-mysql
+    - zabbix-web-mysql
+    - zabbix-java-gateway
+    - java-1.8.0-openjdk
+
+- name: Configure Zabbix MySQL User
+  mysql_user: name=zabbix password=zabbix priv=zabbix.*:ALL state=present login_user=root login_password=root
+
+- name: Configure Zabbix Server
+  template: src=/Templates/zabbix_server.conf dest=/etc/zabbix/zabbix_server.conf
+
+- name: Restart zabbix server
+  service: name=zabbix-server state=restarted
+
+- name: Configure Zabbix Web Application - httpd
+  template: src=/Templates/zabbix.conf dest=/etc/httpd/conf.d/zabbix.conf
+
+- name: Restarting apache
+  systemd:
+   name: httpd
+   state: restarted
+ 
+- name: Configure Zabbix Web Application - config
+  template: src=/Templates/zabbix.conf.php dest=/etc/zabbix/web/zabbix.conf.php owner=apache group=apache
+
+- name: Restore Permissions on /var/www/html/*
+  file: name=/var/www/html/ state=directory owner=apache group=apache recurse=yes
+
+- name: Configure Zabbix MySQL Database
+  mysql_db: name=zabbix  state=present login_user=root login_password=root
+
+- name: Create Zabbix DB Schema
+  shell: gunzip create.sql.gz && mysql -uzabbix -pzabbix zabbix < create.sql
+  args:
+    chdir: /usr/share/doc/zabbix-server-mysql-3.4.15/
+
+- name: Create zabbix link
+  file: src=/usr/share/zabbix/ dest=/var/www/html/zabbix state=link
+
+- name: Enable zabbix java gateway
+  service: name=zabbix-java-gateway enabled=true
+
+- name: Start zabbix java gateway
+  service: name=zabbix-java-gateway state=started
+
+- name: Enable zabbix server
+  service: name=zabbix-server enabled=true
+
+- name: Start zabbix server
+  service: name=zabbix-server state=started
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+- name: Install Zabbix4 Server and frontend with MySQL support !
+  yum:
+    name:
+       - zabbix-server-mysql
+       - zabbix-web-mysql
+       - zabbix-agent
+       - zabbix-get
+    state: latest
+  ignore_errors : yes
+ 
+#- name : Import Zabbix Server database schema
+#  command : zcat /usr/share/doc/zabbix-server-mysql*/create.sql.gz | mysql -uzabbix -p zabbix
 
 - name: Configure and start Zabbix server
   lineinfile:

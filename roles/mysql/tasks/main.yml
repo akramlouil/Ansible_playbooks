@@ -3,31 +3,51 @@
 # Installing installing MySQL server
 #
 
-# Add the official MySQL community repository
+- name: Download and add the repository MYSQL
+  command: "{{ item }} " 
+  with_items:
+      - pwd
+      - wget http://repo.mysql.com/mysql-community-release-el7-5.noarch.rpm
+      - pwd 
+      - rpm -ivh mysql-community-release-el7-5.noarch.rpm
+  ignore_errors : yes 
+   
+- name: Installing MySQL
+  yum: name={{ item }} state=present
+  with_items:
+    - mysql-server
+    - mysql
+    - MySQL-python
+  ignore_errors : yes 
 
-#- name: Add the official MySQL community repository
-#  shell: | 
-#    yum localinstall https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm
-#    expect "Is this ok [y/d/N]"
-#    send "yes\n"    
+# Enable MySql at startup
 
-# Install MySQL 5.7 on CentOS
-
-- name: Install MySql 
-  command: yum install mysql-community-server
+- name: Enable MySQL at startup
+  service: name=mysqld enabled=yes
 
 # Start Mysql 
 
-- name : Start MySql
-  command : systemctl enable --now mysqld.service
+- name: start mysql
+  systemd:
+    name: "{{ item }}" 
+    state: restarted
+    daemon_reload: yes
+  with_items:
+       - 'mysqld'
+  ignore_errors: yes 
 
-# create a database for Zabbix user
+#Config 
 
-- name : create a database for Zabbix user
-  shell : |
-    export db_pass="zabbix"
-    mysql -uroot -p <<MYSQL_SCRIPT
-    create database zabbix;
-    grant all privileges on zabbix.* to zabbix@'localhost' identified by '${db_pass}';
-    FLUSH PRIVILEGES;
-    MYSQL_SCRIPT
+- name: Update MySQL root password
+  mysql_user: name=root host={{ item }} password=root
+  with_items:
+    - 127.0.0.1
+    - ::1
+    - localhost
+  ignore_errors: True
+
+- name: Delete anonymous MySQL user
+  mysql_user: name="" state=absent login_user=root login_password=root
+
+- name: Remove MySQL test database
+  mysql_db: name=test state=absent login_user=root login_password=root
