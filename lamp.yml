@@ -1,0 +1,52 @@
+---
+
+- hosts: web
+  remote_user: root
+  become: yes
+  become_method: sudo
+  tasks:
+
+    - name: install httpd
+      yum:
+        name: httpd
+
+    - name: install php and maria db
+      yum: name={{item}} state=installed
+      with_items:  
+      - php
+      - php-mysql
+      - php-pdo
+      - php-gd
+      - php-mbstring
+      - mariadb-server
+      - mariadb
+
+    - name: copy file
+      shell: echo "<?php phpinfo (); ?>" > /var/www/html/info.php
+
+    - name: install mariadb
+      yum: name={{item}} state=installed
+      with_items:
+      - mariadb-server
+      - mariadb
+    - name: Add Nginx repo
+      copy:
+       dest: "/etc/yum.repos.d/nginx.repo"
+       content: |
+         [nginx]
+         name=nginx repo
+         baseurl=http://nginx.org/packages/mainline/centos/7/$basearch/
+         gpgcheck=0
+         enabled=1
+         state: started
+   
+    - name: Install Nginx
+      yum:
+       name: nginx
+       state: present
+
+    - name: Starting nginx
+      systemd:
+       name: nginx
+       state: started 
+...
